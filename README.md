@@ -1,11 +1,9 @@
 # goDSS
-A project intended to support DSS with go lang.
+Golang demonstration/test programs for DSS files on a linux platform.
 
-To get a set of DSS 7 libraries targeted for Linux use the bash commands below.
 
-```
-#!/bin/bash
-wget -O dss/Linux.zip https://www.hec.usace.army.mil/nexus/repository/heclib/7-HS/Linux.zip
-cd lib
-unzip Linux.zip
-``
+### Useful Links:
+[DSS Programmers Guide for C](https://www.hec.usace.army.mil/confluence/dsscprogrammer)
+
+
+[Dependencies](https://www.hec.usace.army.mil/nexus/repository/heclib/7-HS/Linux.zip)
