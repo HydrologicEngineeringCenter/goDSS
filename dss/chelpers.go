@@ -9,6 +9,7 @@ import (
 //https://stackoverflow.com/questions/36188649/cgo-char-to-slice-string
 func GoStrings(n C.int, charList **C.char) []string {
 	nStrings := int(n)
+	// Need to verify 1 << 30 behavior
 	tmpSlice := (*[1 << 30]*C.char)(unsafe.Pointer(charList))[:nStrings:nStrings]
 	goStrings := make([]string, nStrings)
 
@@ -18,14 +19,13 @@ func GoStrings(n C.int, charList **C.char) []string {
 	return goStrings
 }
 
-//GoFloats converts an array of type **char in c to a []string in go
-//https://stackoverflow.com/questions/36188649/cgo-char-to-slice-string
-func GoFloats(n C.int, floatList *C.double) []float32 {
+//GoFloat64s converts an array of type **char in c to a []string in go
+func GoFloat64s(n C.int, floatList *C.double) []float64 {
 	nFloats := int(n)
-	goFloats := make([]float32, nFloats)
-	tmpSlice := (*[1 << 28]C.double)(unsafe.Pointer(floatList))[:nFloats:nFloats]
+	goFloats := make([]float64, nFloats)
+	tmpSlice := (*[1 << 30]C.double)(unsafe.Pointer(floatList))[:nFloats:nFloats]
 	for i, s := range tmpSlice {
-		goFloats[i] = float32(s)
+		goFloats[i] = float64(s)
 	}
 	return goFloats
 }

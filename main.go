@@ -33,9 +33,20 @@ func main() {
 		fmt.Println(usageWarning)
 	}
 
-	// dss.HelloWorld(filePath)
-	// dss.GoodBye(filePath)
+	dssContents := dss.ReadCatalogue(filePath)
 
-	dss.ReadTimeSeries(filePath)
+	// Print all paths and all time series from the test file
+	for i := 0; i < len(dssContents); i++ {
+		recordPath := dssContents[i]
+		tSeries := dss.ReadTimeSeries(filePath, recordPath)
+		fmt.Println(len(tSeries))
+
+		// Seeing an issue on print with results here
+		// Not seeing this when printing from inside function
+		for j := 0; j < len(tSeries); j++ {
+			fmt.Println(recordPath, tSeries[j])
+		}
+
+	}
 
 }
