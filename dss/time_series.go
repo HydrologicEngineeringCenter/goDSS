@@ -9,7 +9,7 @@ package dss
 import "C"
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	"unsafe"
 )
@@ -53,8 +53,9 @@ func ReadCatalogue(filePath string) []string {
 }
 
 //ReadTimeSeries tests listing paths in dss file
-// func ReadTimeSeries(filePath string, record string, outputJSON string) []TimeSeries {
-func ReadTimeSeries(filePath string, record string, outputJSON string) ([]byte, error) {
+func ReadTimeSeries(filePath string, record string, outputJSON string) []TimeSeries {
+	// This function currently opens and closes the file; This should be changed
+	// so that the open file object is passed in as an argument.
 	ifltab := C.longlong(250)
 	cFilePath := C.CString(filePath)
 	recordPath := C.CString(record)
@@ -66,7 +67,7 @@ func ReadTimeSeries(filePath string, record string, outputJSON string) ([]byte, 
 	cTimeLength := C.int(10) // 10 Characters for a time string
 
 	C.zopen(&ifltab, cFilePath)
-	defer C.zclose(&ifltab)
+	// defer C.zclose(&ifltab) --> Evoking this (either via defer or at the end) exposes a bug.
 
 	tSeries := C.zstructTsNew(recordPath)
 	defer C.zstructFree(unsafe.Pointer(tSeries))
@@ -91,17 +92,22 @@ func ReadTimeSeries(filePath string, record string, outputJSON string) ([]byte, 
 
 		valueTime += tSeries.timeIntervalSeconds / tSeries.timeGranularitySeconds
 
+		newCDate := C.GoString(cDate)
+		newCTime := C.GoString(cTime)
+
 		ts := TimeSeries{
-			Date:   C.GoString(cDate),
-			Time:   C.GoString(cTime),
+			Date:   newCDate,
+			Time:   newCTime,
 			Value:  doubleValues[i],
 			Status: int(status)}
 
 		tsData = append(tsData, ts)
-	}
 
-	results, err := json.Marshal(tsData)
-	// _ = ioutil.WriteFile(outputJSON, results, 0644)
-	// return tsData
-	return results, err
+	}
+	// results, err := json.Marshal(tsData)
+	// // _ = ioutil.WriteFile(outputJSON, results, 0644)
+	// fmt.Println(tsData)
+	// C.zstructFree(unsafe.Pointer(tSeries))
+	return tsData
+	// return results, err
 }
