@@ -1,6 +1,8 @@
 # IDEs
 .vscode
 
+# Dev outputs
+*.json
 *.dsc
 
 # Dev executable

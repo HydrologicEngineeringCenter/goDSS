@@ -8,21 +8,20 @@ import "C"
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/HydrologicEngineeringCenter/goDSS/dss"
 )
 
-/*
-NOTE: Make sure the LD_LIBRARY_PATH is set prior to compiling, and the following
-files are in the dss directory:
-	1. heclib.a
-	2. libjavaHeclib.so
+// NOTE: Make sure the LD_LIBRARY_PATH is set prior to compiling, and the following
+// files are in the dss directory:
+// 	1. heclib.a
+// 	2. libjavaHeclib.so
 
-Example:
-		cd to  GOPATH/github.com/HydrologicEngineeringCenter/goDSS/dss
-		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:=${PWD}
-*/
+// Example:
+// 		cd to  GOPATH/github.com/HydrologicEngineeringCenter/goDSS/dss
+// 		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:=${PWD}
 
 func main() {
 
@@ -35,17 +34,17 @@ func main() {
 
 	dssContents := dss.ReadCatalogue(filePath)
 
-	// Print all paths and all time series from the test file
+	// Print all paths and all time series from the test file to json
 	for i := 0; i < len(dssContents); i++ {
 		recordPath := dssContents[i]
-		tSeries := dss.ReadTimeSeries(filePath, recordPath)
-		fmt.Println(len(tSeries))
 
-		// Seeing an issue on print with results here
-		// Not seeing this when printing from inside function
-		for j := 0; j < len(tSeries); j++ {
-			fmt.Println(recordPath, tSeries[j])
-		}
+		jsonFileName := fmt.Sprintf("%d.json", i)
+		// tSeries := make([]dss.TimeSeries, 0)
+		tSeries, _ := dss.ReadTimeSeries(filePath, recordPath, jsonFileName)
+
+		jsonFileName2 := fmt.Sprintf("%d_FunctionCall.json", i)
+		// jsonOutput, _ := json.Marshal(tSeries)
+		_ = ioutil.WriteFile(jsonFileName2, tSeries, 0644)
 
 	}
 

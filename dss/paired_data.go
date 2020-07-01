@@ -3,21 +3,23 @@ package dss
 // #cgo CFLAGS: -g -Wall
 // #cgo LDFLAGS: -ljavaheclib -L.
 // #include <stdio.h>
+// #include <stdlib.h>
 // #include "headers/heclib7.h"
 // #include "headers/hecdss7.h"
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
 	"unsafe"
 )
 
 // TimeSeries is a simple container for timeseries data
 type TimeSeries struct {
-	date   string
-	time   string
-	value  float64
-	status int
+	Date   string  `json:"date"`
+	Time   string  `json:"time"`
+	Value  float64 `json:"value"`
+	Status int     `json:"status"`
 }
 
 //HelloWorld tests clean opening and closing of a dss file
@@ -51,22 +53,20 @@ func ReadCatalogue(filePath string) []string {
 }
 
 //ReadTimeSeries tests listing paths in dss file
-func ReadTimeSeries(filePath string, record string) []TimeSeries {
+// func ReadTimeSeries(filePath string, record string, outputJSON string) []TimeSeries {
+func ReadTimeSeries(filePath string, record string, outputJSON string) ([]byte, error) {
 	ifltab := C.longlong(250)
 	cFilePath := C.CString(filePath)
 	recordPath := C.CString(record)
 
 	// Move most or all of these to constants
-	cDate := C.CString("startDate")
+	cDate := C.CString("29Aug2017")
 	cDateLength := C.int(13) // 13 Characters for a date string
-	cTime := C.CString("startTime")
+	cTime := C.CString("1900")
 	cTimeLength := C.int(10) // 10 Characters for a time string
 
 	C.zopen(&ifltab, cFilePath)
 	defer C.zclose(&ifltab)
-
-	catStruct := C.zstructCatalogNew()
-	defer C.zstructFree(unsafe.Pointer(catStruct))
 
 	tSeries := C.zstructTsNew(recordPath)
 	defer C.zstructFree(unsafe.Pointer(tSeries))
@@ -78,8 +78,7 @@ func ReadTimeSeries(filePath string, record string) []TimeSeries {
 	doubleValues := GoFloat64s(nValues, tSeries.doubleValues)
 
 	// Create holding container for output
-	var tsData []TimeSeries
-
+	tsData := make([]TimeSeries, 0, int(nValues))
 	valueTime := tSeries.startTimeSeconds / tSeries.timeGranularitySeconds
 
 	// This needs to come out of this function
@@ -93,14 +92,16 @@ func ReadTimeSeries(filePath string, record string) []TimeSeries {
 		valueTime += tSeries.timeIntervalSeconds / tSeries.timeGranularitySeconds
 
 		ts := TimeSeries{
-			date:   C.GoString(cDate),
-			time:   C.GoString(cTime),
-			value:  doubleValues[i],
-			status: int(status)}
+			Date:   C.GoString(cDate),
+			Time:   C.GoString(cTime),
+			Value:  doubleValues[i],
+			Status: int(status)}
 
 		tsData = append(tsData, ts)
 	}
 
-	fmt.Println("\nClosing File.")
-	return tsData
+	results, err := json.Marshal(tsData)
+	// _ = ioutil.WriteFile(outputJSON, results, 0644)
+	// return tsData
+	return results, err
 }
