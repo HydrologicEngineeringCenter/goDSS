@@ -34,12 +34,8 @@ func main() {
 	}
 
 	// dss.HelloWorld(filePath)
-
 	// dss.GoodBye(filePath)
 
-	dss.ReadCatalogue(filePath)
+	dss.ReadTimeSeries(filePath)
 
-	// for i := 0; i < 3; i++ {
-	// 	dss.GoodBye(filePath)
-	// }
 }
