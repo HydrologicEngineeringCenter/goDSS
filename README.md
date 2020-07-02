@@ -1,8 +1,14 @@
 # goDSS
 Golang demonstration/test programs for DSS files on a linux platform.
 
+### Functions
+ 1. Read DSS catalogue & return all paths.
+ 2. Read regular time series data.
 
-### Useful Links:
+
+---
+
+### *Useful Links*
 [DSS Programmers Guide for C](https://www.hec.usace.army.mil/confluence/dsscprogrammer)
 
 
