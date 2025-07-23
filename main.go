@@ -1,4 +1,4 @@
-package main
+package godss
 
 /*
 #cgo LDFLAGS: -lhecdss -L.
@@ -25,13 +25,13 @@ type DssCatalog struct {
 
 func main() {
 
-	myfile, err := InitDssFile("/workspaces/goDss/SST.dss")
+	dssFile, err := InitDssFile("/workspaces/goDss/SST.dss")
 
 	if err != nil {
 		panic(err)
 	}
-	defer myfile.Close()
-	catalog, err := myfile.ReadCatalog()
+	defer dssFile.Close()
+	catalog, err := dssFile.ReadCatalog("/*/*/*/*/*/*/")
 	if err != nil {
 		panic(err)
 	}
@@ -65,11 +65,11 @@ func (d DssFile) Close() {
 	C.hec_dss_close(d.fileHandle)
 }
 
-func (d DssFile) ReadCatalog() (DssCatalog, error) {
+func (d DssFile) ReadCatalog(filter string) (DssCatalog, error) {
 	cRecordCount := C.hec_dss_record_count(d.fileHandle)
 	pathNames := make([]byte, cRecordCount*394)
 	cPathBuffer := (*C.char)(unsafe.Pointer(&pathNames[0]))
-	cFilter := C.CString("/*/*/*/*/*/*/") //pathpartswithwildcards
+	cFilter := C.CString(filter) //pathpartswithwildcards
 	recordTypes := make([]int, cRecordCount)
 	cRecordTypes := (*C.int)(unsafe.Pointer(&recordTypes[0]))
 
