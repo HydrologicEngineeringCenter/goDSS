@@ -1,55 +1,110 @@
 package main
 
-// #cgo CFLAGS: -g -Wall
-// #cgo LDFLAGS: -ljavaheclib -L.
-// #include "dss/headers/heclib7.h"
-// #include "dss/headers/hecdss7.h"
+/*
+#cgo LDFLAGS: -lhecdss -L.
+#include <dlfcn.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include </dss/lib/hec-dss-7-IU-15/heclib/hecdss/hecdss.h>
+*/
 import "C"
 
 import (
 	"fmt"
-	"os"
-
-	"github.com/HydrologicEngineeringCenter/goDSS/dss"
+	"strings"
+	"unsafe"
 )
 
-// NOTE: Make sure the LD_LIBRARY_PATH is set prior to compiling, and the following
-// files are in the dss directory:
-// 	1. heclib.a
-// 	2. libjavaHeclib.so
+type DssFile struct {
+	fileHandle *C.dss_file
+}
 
-// Example:
-// 		cd to  GOPATH/github.com/HydrologicEngineeringCenter/goDSS/dss
-// 		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:=${PWD}
-//
-// Quick Snips:
-// go build main.go
-// go build main.go && ./main "dss/data/G14.dss"
-// rm main && go build main.go && ./main "dss/data/G14.dss"
 func main() {
 
-	var usageWarning string = "./hello_dss dss/data/G14.dss"
-	filePath := os.Args[1]
+	myfile, err := InitDssFile("/workspaces/goDss/SST.dss")
 
-	if len(os.Args) != 2 {
-		fmt.Println(usageWarning)
+	if err != nil {
+		panic(err)
+	}
+	defer myfile.Close()
+	pathnames := myfile.ReadCatalog()
+	err = myfile.ReadTimeSeries(pathnames[0])
+	if err != nil {
+		panic(err)
+	}
+}
+func InitDssFile(filepath string) (DssFile, error) {
+	cFilepath := C.CString(filepath)
+	//defer C.free(unsafe.Pointer(cFilepath))
+
+	var cDss *C.dss_file
+	file := DssFile{}
+
+	ret := C.hec_dss_open(cFilepath, &cDss)
+
+	fmt.Printf("hec_dss_open returned %d\n", int(ret))
+	if ret != 0 {
+		return file, fmt.Errorf("error opening DSS file, check path and file validity")
+	}
+	fmt.Printf("success! DSS handle = %p\n", cDss)
+	ver := C.hec_dss_getVersion(cDss)
+	fmt.Printf("success! DSS version = %v\n", int(ver))
+
+	file.fileHandle = cDss
+	return file, nil
+}
+func (d DssFile) Close() {
+	C.hec_dss_close(d.fileHandle)
+}
+
+func (d DssFile) ReadCatalog() []string {
+	cRecordCount := C.hec_dss_record_count(d.fileHandle)
+	pathNames := make([]byte, cRecordCount*394)
+	cPathBuffer := (*C.char)(unsafe.Pointer(&pathNames[0]))
+	cFilter := C.CString("/*/*/*/*/*/*/") //pathpartswithwildcards
+	recordTypes := make([]int, cRecordCount)
+	cRecordTypes := (*C.int)(unsafe.Pointer(&recordTypes[0]))
+
+	cPathBufferItemSize := C.int(394) //394 defined by  hecdss.c hec_dss_CONSTANT_MAX_PATH_SIZE
+	a := C.hec_dss_catalog(d.fileHandle, cPathBuffer, cRecordTypes, cFilter, cRecordCount, cPathBufferItemSize)
+	fmt.Print(a)
+	stringPathNames := []string{}
+	for i := 0; i < int(cRecordCount); i++ {
+		bdata := pathNames[i*394 : (i+1)*394]
+		sdata := string(bdata)
+		sdata = strings.TrimRight(sdata, "\x00")
+		stringPathNames = append(stringPathNames, sdata)
 	}
 
-	dssContents := dss.ReadCatalogue(filePath)
+	//fmt.Print(stringPathNames[0])
+	return stringPathNames
+}
+func (d DssFile) ReadTimeSeries(pathname string) error {
+	cPathname := C.CString(pathname)
+	unitLength := 10
+	units := make([]byte, unitLength)
+	cUnits := (*C.char)(unsafe.Pointer(&units[0]))
+	mytype := make([]byte, unitLength)
+	cType := (*C.char)(unsafe.Pointer(&mytype[0]))
+	cLength := C.int(unitLength)
+	C.hec_dss_tsRetrieveInfo(d.fileHandle, cPathname, cUnits, cLength, cType, cLength)
+	/*
+		timeLength := 10
+		startDate := make([]byte, timeLength)
+		cStartDate := (*C.char)(unsafe.Pointer(&startDate[0]))
+		startTime := make([]byte, timeLength)
+		cStartTime := (*C.char)(unsafe.Pointer(&startTime[0]))
+		cType := (*C.char)(unsafe.Pointer(&mytype[0]))
+		cLength := C.int(unitLength)
+	*/
+	cStartDate := C.CString("")
+	cStartTime := C.CString("")
+	cEndDate := C.CString("")
+	cEndTime := C.CString("")
+	numvals := C.int(0)
+	qualitySize := C.int(0)
 
-	// Print all paths and all time series from the test file to json
-	for i := 0; i < len(dssContents); i++ {
-		recordPath := dssContents[i]
+	C.hec_dss_tsGetSizes(d.fileHandle, cPathname, cStartDate, cStartTime, cEndDate, cEndTime, &numvals, &qualitySize)
 
-		jsonFileName := fmt.Sprintf("%d_In_Function.json", i)
-		tSeries := make([]dss.TimeSeries, 0)
-		tSeries = dss.ReadTimeSeries(filePath, recordPath, jsonFileName)
-		fmt.Println(tSeries)
-
-		// jsonFileName2 := fmt.Sprintf("%d_FunctionReturn.json", i)
-		// jsonOutput, _ := json.Marshal(tSeries)
-		// _ = ioutil.WriteFile(jsonFileName2, tSeries, 0644)
-
-	}
-
+	return nil
 }

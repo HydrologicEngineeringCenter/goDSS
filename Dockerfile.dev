@@ -1,0 +1,33 @@
+FROM rockylinux:8
+
+ENV GOROOT=/go
+ENV GOPATH=/src/go
+ENV PATH=/go/bin:$PATH
+ENV LD_LIBRARY_PATH=/lib/:/dss/lib:$LD_LIBRARY_PATH
+
+RUN yum -y update &&\ 
+    yum -y install git &&\
+    yum -y install wget &&\
+    yum -y install unzip &&\
+    yum -y install gcc &&\
+    yum -y install gcc-c++ &&\
+    yum -y install make &&\
+    yum -y install gcc-gfortran &&\
+    yum -y install zlib-devel &&\
+    yum -y install java-devel &&\
+    yum -y install libcurl-devel.x86_64
+
+    
+ARG DSS_FILE=hecdss-7-IU-15-linux-x86_64.zip
+ARG NEXUS_URL=https://www.hec.usace.army.mil/nexus/repository/maven-public/mil/army/usace/hec/hecdss/7-IU-15-linux-x86_64/hecdss-7-IU-15-linux-x86_64.zip
+
+RUN mkdir -p /dss/lib/
+
+RUN wget ${NEXUS_URL} -P /
+RUN unzip -d /dss/lib/ ${DSS_FILE}
+
+RUN wget https://github.com/HydrologicEngineeringCenter/hec-dss/archive/refs/tags/7-IU-15.zip -P /
+RUN unzip -d /dss/lib/ 7-IU-15.zip
+
+RUN wget https://go.dev/dl/go1.23.10.linux-amd64.tar.gz -P / &&\
+    tar -xvzf go1.23.10.linux-amd64.tar.gz -C / 
