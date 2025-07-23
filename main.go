@@ -18,6 +18,10 @@ import (
 type DssFile struct {
 	fileHandle *C.dss_file
 }
+type DssCatalog struct {
+	PathNames   []string
+	RecordTypes []int
+}
 
 func main() {
 
@@ -27,11 +31,15 @@ func main() {
 		panic(err)
 	}
 	defer myfile.Close()
-	pathnames := myfile.ReadCatalog()
-	err = myfile.ReadTimeSeries(pathnames[0])
+	catalog, err := myfile.ReadCatalog()
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(catalog.PathNames[0])
+	/*err = myfile.ReadTimeSeries(catalog.PathNames[0])
+	if err != nil {
+		panic(err)
+	}*/
 }
 func InitDssFile(filepath string) (DssFile, error) {
 	cFilepath := C.CString(filepath)
@@ -57,7 +65,7 @@ func (d DssFile) Close() {
 	C.hec_dss_close(d.fileHandle)
 }
 
-func (d DssFile) ReadCatalog() []string {
+func (d DssFile) ReadCatalog() (DssCatalog, error) {
 	cRecordCount := C.hec_dss_record_count(d.fileHandle)
 	pathNames := make([]byte, cRecordCount*394)
 	cPathBuffer := (*C.char)(unsafe.Pointer(&pathNames[0]))
@@ -76,9 +84,13 @@ func (d DssFile) ReadCatalog() []string {
 		stringPathNames = append(stringPathNames, sdata)
 	}
 
-	//fmt.Print(stringPathNames[0])
-	return stringPathNames
+	return DssCatalog{
+		PathNames:   stringPathNames,
+		RecordTypes: recordTypes,
+	}, nil
 }
+
+/*
 func (d DssFile) ReadTimeSeries(pathname string) error {
 	cPathname := C.CString(pathname)
 	unitLength := 10
@@ -88,15 +100,14 @@ func (d DssFile) ReadTimeSeries(pathname string) error {
 	cType := (*C.char)(unsafe.Pointer(&mytype[0]))
 	cLength := C.int(unitLength)
 	C.hec_dss_tsRetrieveInfo(d.fileHandle, cPathname, cUnits, cLength, cType, cLength)
-	/*
-		timeLength := 10
-		startDate := make([]byte, timeLength)
-		cStartDate := (*C.char)(unsafe.Pointer(&startDate[0]))
-		startTime := make([]byte, timeLength)
-		cStartTime := (*C.char)(unsafe.Pointer(&startTime[0]))
-		cType := (*C.char)(unsafe.Pointer(&mytype[0]))
-		cLength := C.int(unitLength)
-	*/
+		//timeLength := 10
+		//startDate := make([]byte, timeLength)
+		//cStartDate := (*C.char)(unsafe.Pointer(&startDate[0]))
+		//startTime := make([]byte, timeLength)
+		//cStartTime := (*C.char)(unsafe.Pointer(&startTime[0]))
+		//cType := (*C.char)(unsafe.Pointer(&mytype[0]))
+		//cLength := C.int(unitLength)
+
 	cStartDate := C.CString("")
 	cStartTime := C.CString("")
 	cEndDate := C.CString("")
@@ -108,3 +119,5 @@ func (d DssFile) ReadTimeSeries(pathname string) error {
 
 	return nil
 }
+
+*/
