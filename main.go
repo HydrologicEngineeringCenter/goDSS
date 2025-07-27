@@ -23,7 +23,7 @@ type DssCatalog struct {
 	RecordTypes []int
 }
 
-func main() {
+func demo() {
 
 	dssFile, err := InitDssFile("/workspaces/goDss/SST.dss")
 
@@ -36,10 +36,12 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(catalog.PathNames[0])
-	/*err = myfile.ReadTimeSeries(catalog.PathNames[0])
+	catalog.RemoveDatesFromCatalog()
+	fmt.Println(catalog.PathNames[0])
+	err = dssFile.ReadTimeSeries(catalog.PathNames[0])
 	if err != nil {
 		panic(err)
-	}*/
+	}
 }
 func InitDssFile(filepath string) (DssFile, error) {
 	cFilepath := C.CString(filepath)
@@ -90,34 +92,65 @@ func (d DssFile) ReadCatalog(filter string) (DssCatalog, error) {
 	}, nil
 }
 
-/*
 func (d DssFile) ReadTimeSeries(pathname string) error {
 	cPathname := C.CString(pathname)
-	unitLength := 10
-	units := make([]byte, unitLength)
-	cUnits := (*C.char)(unsafe.Pointer(&units[0]))
-	mytype := make([]byte, unitLength)
-	cType := (*C.char)(unsafe.Pointer(&mytype[0]))
-	cLength := C.int(unitLength)
-	C.hec_dss_tsRetrieveInfo(d.fileHandle, cPathname, cUnits, cLength, cType, cLength)
-		//timeLength := 10
-		//startDate := make([]byte, timeLength)
-		//cStartDate := (*C.char)(unsafe.Pointer(&startDate[0]))
-		//startTime := make([]byte, timeLength)
-		//cStartTime := (*C.char)(unsafe.Pointer(&startTime[0]))
-		//cType := (*C.char)(unsafe.Pointer(&mytype[0]))
-		//cLength := C.int(unitLength)
 
-	cStartDate := C.CString("")
-	cStartTime := C.CString("")
-	cEndDate := C.CString("")
-	cEndTime := C.CString("")
-	numvals := C.int(0)
-	qualitySize := C.int(0)
+	/*
+		unitLength := 10
+		units := make([]byte, unitLength)
+		cUnits := (*C.char)(unsafe.Pointer(&units[0]))
+		mytype := make([]byte, unitLength)
+		cType := (*C.char)(unsafe.Pointer(&mytype[0]))
+		cLength := C.int(unitLength)
+		C.hec_dss_tsRetrieveInfo(d.fileHandle, cPathname, cUnits, cLength, cType, cLength)
+			//timeLength := 10
+			//startDate := make([]byte, timeLength)
+			//cStartDate := (*C.char)(unsafe.Pointer(&startDate[0]))
+			//startTime := make([]byte, timeLength)
+			//cStartTime := (*C.char)(unsafe.Pointer(&startTime[0]))
+			//cType := (*C.char)(unsafe.Pointer(&mytype[0]))
+			//cLength := C.int(unitLength)
+	*/
+	cFullSet := C.int(1)
+	cStartDate := C.int(0)
+	cStartTime := C.int(0)
+	cEndDate := C.int(0)
+	cEndTime := C.int(0)
+	//numvals := C.int(0)
+	//qualitySize := C.int(0)
 
-	C.hec_dss_tsGetSizes(d.fileHandle, cPathname, cStartDate, cStartTime, cEndDate, cEndTime, &numvals, &qualitySize)
+	C.hec_dss_tsGetDateTimeRange(d.fileHandle, cPathname, cFullSet, &cStartDate, &cStartTime, &cEndDate, &cEndTime)
+	fmt.Println(int(cStartDate))
+	fmt.Println(int(cStartTime))
+	fmt.Println(int(cEndDate))
+	fmt.Println(int(cEndTime))
+
+	cInteval := C.int(3600)
+	numPeriods := C.hec_dss_numberPeriods(cInteval, cStartDate, cStartTime, cEndDate, cEndTime)
+	fmt.Println(numPeriods)
+
+	cStartYear := C.int(0)
+	cStartMonth := C.int(0)
+	cStartDay := C.int(0)
+	cEndYear := C.int(0)
+	cEndMonth := C.int(0)
+	cEndDay := C.int(0)
+	C.hec_dss_julianToYearMonthDay(cStartDate, &cStartYear, &cStartMonth, &cStartDay)
+	C.hec_dss_julianToYearMonthDay(cEndDate, &cEndYear, &cEndMonth, &cEndDay)
+
+	fmt.Printf("Starting at %v year, %v month, %v day, %v hours\n", int(cStartYear), int(cStartMonth), int(cStartDay), secondsToHours(int(cStartTime)))
+	fmt.Printf("Ending at %v year, %v month, %v day, %v hours\n", int(cEndYear), int(cEndMonth), int(cEndDay), secondsToHours(int(cEndTime)))
 
 	return nil
 }
-
-*/
+func secondsToHours(seconds int) int {
+	return seconds / 60 / 60
+}
+func (catalog *DssCatalog) RemoveDatesFromCatalog() {
+	for i, p := range catalog.PathNames {
+		parts := strings.Split(p, "/")
+		d := parts[4]
+		newp := strings.Replace(p, d, "*", -1)
+		catalog.PathNames[i] = newp
+	}
+}
