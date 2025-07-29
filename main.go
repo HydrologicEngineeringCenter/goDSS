@@ -166,7 +166,7 @@ func julianToGoTime(cDate C.int, cTime C.int) time.Time {
 	Hour := secondsToHours(int(cTime))
 	t := time.Date(int(cYear), Month, int(cDay), Hour, 0, 0, 0, time.UTC)
 	if Hour == 24 {
-		t.Add(time.Nanosecond * -1)
+		t = t.Add(time.Nanosecond * -1)
 	}
 	return t
 }
