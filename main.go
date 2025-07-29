@@ -24,6 +24,10 @@ type DssCatalog struct {
 	PathNames   []string
 	RecordTypes []int
 }
+type RegularTimeSeries struct {
+	Times  []time.Time //Times  []int //- how do i convert this dataset
+	Values []float64
+}
 
 func demo() {
 
@@ -40,10 +44,11 @@ func demo() {
 	//fmt.Println(catalog.PathNames[0])
 	catalog.RemoveDatesFromCatalog()
 	//fmt.Println(catalog.PathNames[0])
-	err = dssFile.ReadTimeSeries("//livingston_s030/FLOW/*/1Hour/RUN:SST/")
+	ts, err := dssFile.ReadRegularTimeSeries("//livingston_s030/FLOW/*/1Hour/RUN:SST/")
 	if err != nil {
 		panic(err)
 	}
+	ts.Print()
 }
 func InitDssFile(filepath string) (DssFile, error) {
 	cFilepath := C.CString(filepath)
@@ -96,7 +101,7 @@ func (d DssFile) ReadCatalog(filter string) (DssCatalog, error) {
 	}, nil
 }
 
-func (d DssFile) ReadTimeSeries(pathname string) error {
+func (d DssFile) ReadRegularTimeSeries(pathname string) (RegularTimeSeries, error) {
 	cPathname := C.CString(pathname)
 	cFullSet := C.int(1) //expose as option eventually?
 	cStartDate := C.int(0)
@@ -109,11 +114,11 @@ func (d DssFile) ReadTimeSeries(pathname string) error {
 	startTimeGo := julianToGoTime(cStartDate, cStartTime)
 	startDateString := strings.ToUpper(startTimeGo.Format("02Jan2006"))
 	startTimeString := startTimeGo.Format("15:04:05")
-
+	fmt.Println(startDateString + " " + startTimeString)
 	endTimeGo := julianToGoTime(cEndDate, cEndTime)
 	endDateString := strings.ToUpper(endTimeGo.Format("02Jan2006"))
 	endTimeString := endTimeGo.Format("15:04:05")
-
+	fmt.Println(endDateString + " " + endTimeString)
 	bufferLength := 40
 	units := make([]byte, bufferLength)
 	cUnits := (*C.char)(unsafe.Pointer(&units[0]))
@@ -132,7 +137,7 @@ func (d DssFile) ReadTimeSeries(pathname string) error {
 	cQualitySize := C.int(0)
 	getSizesErr := C.hec_dss_tsGetSizes(d.fileHandle, cPathname, cStartDateChar, cStartTimeChar, cEndDateChar, cEndTimeChar, &cNumPeriods, &cQualitySize)
 	if int(getSizesErr) != 0 {
-		return fmt.Errorf("could not determine dimensions of pathname %v", pathname)
+		return RegularTimeSeries{}, fmt.Errorf("could not determine dimensions of pathname %v", pathname)
 	}
 
 	times := make([]int, int(cNumPeriods))
@@ -148,11 +153,12 @@ func (d DssFile) ReadTimeSeries(pathname string) error {
 	cTimezone := (*C.char)(unsafe.Pointer(&timezone[0]))
 	cValsRead := C.int(0)
 	response := C.hec_dss_tsRetrieve(d.fileHandle, cPathname, cStartDateChar, cStartTimeChar, cEndDateChar, cEndTimeChar, cTimes, cVals, cArraySize, &cValsRead, cQualities, cQualitySize, &cJulian, &cGranularity, cUnits, cLength, cType, cLength, cTimezone, cLength)
-	fmt.Println(vals)
+	timesGo := intTimeArrayToGoTimeArray(times, 3600, startTimeGo)
+	vals = vals[0:len(timesGo)]
 	if int(response) != 0 {
-		return fmt.Errorf("could not read regular timeseries at pathname %v", pathname)
+		return RegularTimeSeries{}, fmt.Errorf("could not read regular timeseries at pathname %v", pathname)
 	}
-	return nil
+	return RegularTimeSeries{timesGo, vals}, nil
 }
 func secondsToHours(seconds int) int {
 	return seconds / 60 / 60
@@ -176,5 +182,28 @@ func (catalog *DssCatalog) RemoveDatesFromCatalog() {
 		d := parts[4]
 		newp := strings.Replace(p, d, "*", -1)
 		catalog.PathNames[i] = newp
+	}
+}
+
+func intTimeArrayToGoTimeArray(times []int, granularity int, startDateTime time.Time) []time.Time {
+	t := make([]time.Time, 0)
+
+	delta := time.Second
+	if granularity == 3600 {
+		delta = time.Hour //assuming regular
+	}
+	currentTime := startDateTime.Add(-1 * delta) //remove so that the first time isnt offset by 1 hour
+	for i := 0; i < len(times); i++ {
+		currentTime = currentTime.Add(delta)
+		//if times[i] != 0 {
+		t = append(t, currentTime)
+		//}
+	}
+	return t
+}
+func (ts RegularTimeSeries) Print() {
+	fmt.Printf("Times,Values\n")
+	for i, v := range ts.Values {
+		fmt.Printf("%v,%v\n", ts.Times[i].Format("02Jan2006 15:04:05"), v)
 	}
 }
