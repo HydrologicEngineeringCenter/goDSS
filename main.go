@@ -186,20 +186,31 @@ func (catalog *DssCatalog) RemoveDatesFromCatalog() {
 }
 
 func intTimeArrayToGoTimeArray(times []int, granularity int, startDateTime time.Time) []time.Time {
-	t := make([]time.Time, 0)
+	timesGo := make([]time.Time, 0)
 
-	delta := time.Second
-	if granularity == 3600 {
-		delta = time.Hour //assuming regular
+	var delta time.Duration
+	//d := time.Duration(t)
+	switch granularity {
+	case 1:
+		delta = time.Second // * d
+	case 60:
+		delta = time.Minute // * d
+	case 3600:
+		delta = time.Hour //* d
+	case 86400:
+		delta = time.Hour * 24 //* d
 	}
-	currentTime := startDateTime.Add(-1 * delta) //remove so that the first time isnt offset by 1 hour
-	for i := 0; i < len(times); i++ {
-		currentTime = currentTime.Add(delta)
-		//if times[i] != 0 {
-		t = append(t, currentTime)
-		//}
+	currentTime := startDateTime
+	for i := range times {
+		if i == 0 {
+			timesGo = append(timesGo, startDateTime)
+		} else {
+
+			currentTime = currentTime.Add(delta)
+			timesGo = append(timesGo, currentTime)
+		}
 	}
-	return t
+	return timesGo
 }
 func (ts RegularTimeSeries) Print() {
 	fmt.Printf("Times,Values\n")
