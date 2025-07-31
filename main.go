@@ -24,9 +24,17 @@ type DssCatalog struct {
 	PathNames   []string
 	RecordTypes []int
 }
-type RegularTimeSeries struct {
+type TimeSeries struct {
 	Times  []time.Time //Times  []int //- how do i convert this dataset
 	Values []float64
+}
+type PathNameParts struct {
+	A string
+	B string
+	C string
+	D string
+	E string
+	F string
 }
 
 func demo() {
@@ -44,7 +52,7 @@ func demo() {
 	//fmt.Println(catalog.PathNames[0])
 	catalog.RemoveDatesFromCatalog()
 	//fmt.Println(catalog.PathNames[0])
-	ts, err := dssFile.ReadRegularTimeSeries("//livingston_s030/FLOW/*/1Hour/RUN:SST/")
+	ts, err := dssFile.ReadTimeSeries("//livingston_s030/FLOW/*/1Hour/RUN:SST/")
 	if err != nil {
 		panic(err)
 	}
@@ -101,7 +109,7 @@ func (d DssFile) ReadCatalog(filter string) (DssCatalog, error) {
 	}, nil
 }
 
-func (d DssFile) ReadRegularTimeSeries(pathname string) (RegularTimeSeries, error) {
+func (d DssFile) ReadTimeSeries(pathname string) (TimeSeries, error) {
 	cPathname := C.CString(pathname)
 	cFullSet := C.int(1) //expose as option eventually?
 	cStartDate := C.int(0)
@@ -137,7 +145,7 @@ func (d DssFile) ReadRegularTimeSeries(pathname string) (RegularTimeSeries, erro
 	cQualitySize := C.int(0)
 	getSizesErr := C.hec_dss_tsGetSizes(d.fileHandle, cPathname, cStartDateChar, cStartTimeChar, cEndDateChar, cEndTimeChar, &cNumPeriods, &cQualitySize)
 	if int(getSizesErr) != 0 {
-		return RegularTimeSeries{}, fmt.Errorf("could not determine dimensions of pathname %v", pathname)
+		return TimeSeries{}, fmt.Errorf("could not determine dimensions of pathname %v", pathname)
 	}
 
 	times := make([]int, int(cNumPeriods))
@@ -156,9 +164,9 @@ func (d DssFile) ReadRegularTimeSeries(pathname string) (RegularTimeSeries, erro
 	timesGo := intTimeArrayToGoTimeArray(times, 3600, startTimeGo)
 	vals = vals[0:len(timesGo)]
 	if int(response) != 0 {
-		return RegularTimeSeries{}, fmt.Errorf("could not read regular timeseries at pathname %v", pathname)
+		return TimeSeries{}, fmt.Errorf("could not read regular timeseries at pathname %v", pathname)
 	}
-	return RegularTimeSeries{timesGo, vals}, nil
+	return TimeSeries{timesGo, vals}, nil
 }
 func secondsToHours(seconds int) int {
 	return seconds / 60 / 60
@@ -212,9 +220,83 @@ func intTimeArrayToGoTimeArray(times []int, granularity int, startDateTime time.
 	}
 	return timesGo
 }
-func (ts RegularTimeSeries) Print() {
+func (ts TimeSeries) Print() {
 	fmt.Printf("Times,Values\n")
 	for i, v := range ts.Values {
 		fmt.Printf("%v,%v\n", ts.Times[i].Format("02Jan2006 15:04:05"), v)
 	}
+}
+func ToPathNameParts(pathname string) PathNameParts {
+	parts := strings.Split(pathname, "/")
+	return PathNameParts{
+		A: parts[1],
+		B: parts[2],
+		C: parts[3],
+		D: parts[4],
+		E: parts[5],
+		F: parts[6],
+	}
+}
+func (p PathNameParts) ToString() string {
+	return fmt.Sprintf("/%v/%v/%v/%v/%v/%v/", p.A, p.B, p.C, p.D, p.E, p.F)
+
+}
+func (p PathNameParts) ToStringWithAliasD() string {
+
+	return fmt.Sprintf("/%v/%v/%v/%v/%v/%v/", p.A, p.B, p.C, "*", p.E, p.F)
+}
+func (p PathNameParts) TimeStep() (time.Duration, error) {
+	switch strings.ToLower(p.E) {
+	case "1minute":
+		return time.Minute, nil
+	case "2minutes":
+		return time.Minute * 2, nil
+	case "3minutes":
+		return time.Minute * 3, nil
+	case "4minutes":
+		return time.Minute * 4, nil
+	case "5minutes":
+		return time.Minute * 5, nil
+	case "6minutes":
+		return time.Minute * 6, nil
+	case "10minutes":
+		return time.Minute * 10, nil
+	case "12minutes":
+		return time.Minute * 12, nil
+	case "15minutes":
+		return time.Minute * 15, nil
+	case "20minutes":
+		return time.Minute * 20, nil
+	case "30minutes":
+		return time.Minute * 30, nil
+	case "1hour":
+		return time.Hour * 1, nil
+	case "2hours":
+		return time.Hour * 2, nil
+	case "3hours":
+		return time.Hour * 3, nil
+	case "4hours":
+		return time.Hour * 4, nil
+	case "6hours":
+		return time.Hour * 6, nil
+	case "8hours":
+		return time.Hour * 8, nil
+	case "12hours":
+		return time.Hour * 12, nil
+	case "1day":
+		return time.Hour * 1 * 24, nil
+	case "2days":
+		return time.Hour * 2 * 24, nil
+	case "3days":
+		return time.Hour * 3 * 24, nil
+	case "4days":
+		return time.Hour * 4 * 24, nil
+	case "5days":
+		return time.Hour * 5 * 24, nil
+	case "6days":
+		return time.Hour * 6 * 24, nil
+	case "1week":
+		return time.Hour * 7 * 24, nil
+	}
+	return time.Hour, fmt.Errorf("could not parse E part %v to time step", p.E)
 }
